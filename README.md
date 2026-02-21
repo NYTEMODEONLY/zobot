@@ -88,3 +88,7 @@ zobot/
 - [discord.py](https://discordpy.readthedocs.io/)
 - [xAI Grok API](https://x.ai/api)
 - [Zo Computer](https://www.zo.computer/)
+
+---
+
+a [nytemode](https://nytemode.com) project
