@@ -2,20 +2,31 @@
 
 A Discord bot that answers questions about [Zo Computer](https://www.zo.computer/) using the official documentation. Built and hosted on Zo Computer itself.
 
-Powered by **xAI's Grok** (`grok-4-1-fast-reasoning`) with live doc retrieval from [docs.zocomputer.com](https://docs.zocomputer.com/).
+Powered by **xAI's Grok** (`grok-4-1-fast-reasoning`) with a full local documentation snapshot and BM25 search — no live doc fetches per query.
 
 ## How It Works
 
-- Mention the bot in Discord (`@ZoBot your question here`)
-- It fetches the Zo Computer sitemap and retrieves relevant documentation pages
-- Passes the doc content as context to Grok for grounded, accurate answers
-- Validates all URLs before responding to prevent hallucinated links
+1. **On startup**, ZoBot crawls every page listed in the Zo Computer docs sitemap and indexes the full content locally using BM25 (a best-in-class text ranking algorithm)
+2. **When mentioned** (`@ZoBot your question`), it searches the local index to find the most relevant doc sections — zero outbound HTTP requests per query
+3. **Relevant context** is passed to Grok to generate a grounded, accurate answer with real documentation links
+4. **Every 24 hours**, the snapshot refreshes automatically in the background to stay current with any doc updates
+
+## Why This Architecture
+
+The naive approach (fetching docs live on every question) wastes API tokens and adds latency. ZoBot instead:
+
+- Crawls all docs **once** at startup with 5 concurrent fetchers
+- Stores the full content in memory, chunked and indexed with BM25
+- Serves every query from the local index — fast, efficient, no per-query HTTP overhead
+- Validates URLs naturally (only indexed URLs can be cited, so hallucinated links are impossible)
 
 ## Features
 
-- Live documentation grounding (sitemap refreshed every 12 hours)
-- Friendly, conversational response style
-- URL validation — only cites real, accessible docs pages
+- Full documentation snapshot with BM25 semantic-ish search (much smarter than keyword matching on URL slugs)
+- Zero live HTTP calls per query after startup
+- 24-hour background refresh keeps the index current
+- Per-user rate limiting (5s cooldown) to prevent token waste
+- "Still warming up" guard if someone pings before the crawl finishes
 - Focused scope — politely declines non-Zo questions
 
 ## Setup
@@ -68,20 +79,34 @@ chmod +x run.sh
 ./run.sh
 ```
 
+> **Note:** On first start, ZoBot will crawl all Zo Computer documentation pages before going online. This takes a few seconds. The bot will respond "Still warming up" to any pings during this window.
+
 ## Running 24/7 on Zo Computer
 
-If you have a Zo Computer, you can host this bot as a persistent background service via the Zo dashboard or terminal.
+If you have a Zo Computer, you can host this bot as a persistent background service via the Zo dashboard or terminal. The 24h background refresh means you never need to restart it to get updated docs.
 
 ## Project Structure
 
 ```
 zobot/
-├── bot_simple.py      # Main bot logic
-├── requirements.txt   # Python dependencies
+├── bot_simple.py      # Main bot — snapshot crawler, BM25 index, Discord events
+├── requirements.txt   # Python dependencies (includes rank-bm25)
 ├── run.sh             # Startup script
 ├── .env.example       # Environment variable template
+├── TASKS.md           # Feature history and improvement ideas
 └── .gitignore
 ```
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `discord.py` | Discord bot framework |
+| `openai` | xAI Grok API client (OpenAI-compatible) |
+| `aiohttp` | Async HTTP for sitemap + doc crawling |
+| `beautifulsoup4` + `lxml` | HTML parsing and text extraction |
+| `rank-bm25` | Local BM25 search index |
+| `python-dotenv` | Environment variable loading |
 
 ## Built With
 

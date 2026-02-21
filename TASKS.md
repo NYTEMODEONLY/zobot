@@ -1,28 +1,35 @@
-# ZoBot Discord Bot - Task Tracking
+# ZoBot — Task Tracking
 
-## Completed Tasks
+## Completed
 
-- ✅ **Docs Index Implementation** - Implemented sitemap fetch/parse + in-memory allowlist of valid docs URLs with automatic refresh
-- ✅ **Doc Retrieval** - Implemented grounding by fetching/extracting text from top-matched docs pages and passing excerpts + canonical URLs to the model
-- ✅ **Prompt Guardrails** - Updated system prompt to forbid invented URLs and require citations only from provided docs URLs
-- ✅ **URL Validator** - Implemented validation and canonicalization of all outgoing URLs; replaces invalid doc links with best-match allowlisted URL or /intro fallback
-- ✅ **Tracking File** - Created this TASKS.md file for ongoing bot improvements
+- ✅ **Initial bot** — Discord bot responding to @mentions using xAI Grok (`grok-4-1-fast-reasoning`)
+- ✅ **Docs index** — Sitemap fetch/parse with in-memory allowlist of valid documentation URLs
+- ✅ **Doc retrieval** — Grounding via live page fetches; excerpts + URLs passed to model as context
+- ✅ **Prompt guardrails** — System prompt forbids invented URLs; citations must come from provided context
+- ✅ **URL validator** — Validation and canonicalization of all outgoing URLs with /intro fallback
+- ✅ **GitHub release** — Public repo with clean README, .gitignore, .env.example
+- ✅ **Full docs snapshot + BM25** — Replaced per-query HTTP fetching with a full sitemap crawl at startup; BM25 index over chunked content for local search (zero HTTP calls per query)
+- ✅ **Rate limiting** — Per-user 5s cooldown to prevent token waste
+- ✅ **Background refresh** — Snapshot auto-refreshes every 24h without restart
 
-## Current Status
+## Current Architecture
 
-The bot now:
-- Fetches and maintains an allowlist of valid documentation URLs from the sitemap
-- Retrieves relevant documentation pages based on user queries
-- Provides documentation context to the AI model
-- Validates all URLs before sending to Discord
-- Replaces invalid documentation URLs with valid alternatives
-- Refreshes the sitemap cache every 12 hours
+```
+Startup:
+  fetch sitemap → crawl all pages (5 concurrent) → chunk content → BM25 index
+
+On @mention:
+  BM25 search (local, no HTTP) → pass top chunks to Grok → Discord reply
+  
+Background:
+  every 24h → re-crawl sitemap → rebuild BM25 index
+```
 
 ## Future Improvements
 
-- Consider adding rate limiting per channel to prevent spam
-- Add more sophisticated content extraction from docs pages
-- Implement caching of retrieved doc content to reduce API calls
-- Add metrics/logging for URL validation failures
-- Consider adding slash commands in addition to @mentions
-
+- Add per-channel rate limiting in addition to per-user
+- Slash commands (`/ask`, `/docs`) in addition to @mentions
+- Semantic embedding search (e.g. sentence-transformers) for better handling of vague/conversational queries
+- Cache BM25 snapshot to disk so restarts don't require a full re-crawl
+- Metrics: log query → matched URLs → answer quality signals
+- Multi-turn conversation memory (thread-scoped context)
